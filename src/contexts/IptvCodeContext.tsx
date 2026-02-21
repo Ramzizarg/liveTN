@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   IPTV_PASSWORD_DEFAULT,
+  IPTV_PLAYLIST_NAME_DEFAULT,
   IPTV_PORTAL_DEFAULT,
   IPTV_USERNAME_DEFAULT,
 } from "@/data/channels";
@@ -15,6 +16,7 @@ import {
 const STORAGE_KEY = "livestream-tv-iptv-credentials";
 const LEGACY_CODE_KEY = "livestream-tv-iptv-code";
 const PLAYLIST_URL_KEY = "livestream-tv-playlist-url";
+const PLAYLIST_NAME_KEY = "livestream-tv-playlist-name";
 
 /** True if the string looks like a playlist or provider link (M3U / portal) */
 export function isPlaylistUrl(s: string): boolean {
@@ -81,14 +83,27 @@ function loadSavedPlaylistUrl(): string | null {
   }
 }
 
+function loadPlaylistName(): string {
+  if (typeof window === "undefined") return IPTV_PLAYLIST_NAME_DEFAULT;
+  try {
+    const n = localStorage.getItem(PLAYLIST_NAME_KEY)?.trim();
+    return n || IPTV_PLAYLIST_NAME_DEFAULT;
+  } catch {
+    return IPTV_PLAYLIST_NAME_DEFAULT;
+  }
+}
+
 type IptvCodeState = {
   /** XCIPTV-style: Portal URL, Username, Password */
   credentials: IptvCredentials;
+  /** Display name for the current playlist (e.g. Aziza) */
+  playlistName: string;
   /** True if user has saved custom credentials (not default) */
   hasCustomCode: boolean;
   /** Saved M3U/playlist link – reload app or "Reload channels" to load from it */
   savedPlaylistUrl: string | null;
   setCredentials: (c: Partial<IptvCredentials>) => void;
+  setPlaylistName: (name: string) => void;
   /** Set code (password for Tunisia) or playlist link. Link is stored; call loadFromM3uUrls in ChannelsContext to load. */
   setCodeOrLink: (value: string) => { isLink: boolean };
   setSavedPlaylistUrl: (url: string | null) => void;
@@ -100,6 +115,7 @@ const IptvCodeContext = createContext<IptvCodeState | null>(null);
 
 export function IptvCodeProvider({ children }: { children: ReactNode }) {
   const [credentials, setCredentialsState] = useState<IptvCredentials>(loadStored);
+  const [playlistName, setPlaylistNameState] = useState<string>(loadPlaylistName);
   const [hasCustomCode, setHasCustomCode] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return !credentialsEqual(loadStored(), DEFAULT_CREDENTIALS);
@@ -109,6 +125,7 @@ export function IptvCodeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = loadStored();
     setCredentialsState(stored);
+    setPlaylistNameState(loadPlaylistName());
     setHasCustomCode(!credentialsEqual(stored, DEFAULT_CREDENTIALS));
     setSavedPlaylistUrlState(loadSavedPlaylistUrl());
   }, []);
@@ -144,6 +161,16 @@ export function IptvCodeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setPlaylistName = useCallback((name: string) => {
+    const value = name?.trim() || IPTV_PLAYLIST_NAME_DEFAULT;
+    setPlaylistNameState(value);
+    try {
+      localStorage.setItem(PLAYLIST_NAME_KEY, value);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const setCodeOrLink = useCallback((value: string) => {
     const trimmed = value.trim();
     if (isPlaylistUrl(trimmed)) {
@@ -159,10 +186,12 @@ export function IptvCodeProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(LEGACY_CODE_KEY);
       localStorage.removeItem(PLAYLIST_URL_KEY);
+      localStorage.removeItem(PLAYLIST_NAME_KEY);
     } catch {
       // ignore
     }
     setCredentialsState(DEFAULT_CREDENTIALS);
+    setPlaylistNameState(IPTV_PLAYLIST_NAME_DEFAULT);
     setHasCustomCode(false);
     setSavedPlaylistUrlState(null);
   }, []);
@@ -171,9 +200,11 @@ export function IptvCodeProvider({ children }: { children: ReactNode }) {
     <IptvCodeContext.Provider
       value={{
         credentials,
+        playlistName,
         hasCustomCode,
         savedPlaylistUrl,
         setCredentials,
+        setPlaylistName,
         setCodeOrLink,
         setSavedPlaylistUrl,
         clearCredentials,

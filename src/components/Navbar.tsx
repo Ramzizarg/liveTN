@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Tv, KeyRound, RotateCw } from "lucide-react";
+import { Tv, KeyRound, Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useIptvCode, isPlaylistUrl } from "@/contexts/IptvCodeContext";
+import { useIptvCode } from "@/contexts/IptvCodeContext";
 import { useChannels } from "@/contexts/ChannelsContext";
 import {
+  buildXtreamM3uUrl,
   IPTV_PASSWORD_DEFAULT,
+  IPTV_PLAYLIST_NAME_DEFAULT,
   IPTV_PORTAL_DEFAULT,
   IPTV_USERNAME_DEFAULT,
 } from "@/data/channels";
@@ -12,75 +14,66 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export function Navbar() {
   const {
     credentials,
+    playlistName,
     hasCustomCode,
-    savedPlaylistUrl,
     setCredentials,
-    setCodeOrLink,
+    setPlaylistName,
+    setSavedPlaylistUrl,
     clearCredentials,
   } = useIptvCode();
-  const { loadFromM3uUrls, reloadChannelsFromSavedLink, loading: channelsLoading } = useChannels();
-  const [codeOrLink, setCodeOrLinkInput] = useState("");
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [portal, setPortal] = useState(credentials.portal);
+  const { loadFromM3uUrls, loading: channelsLoading } = useChannels();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(playlistName);
   const [username, setUsername] = useState(credentials.username);
   const [password, setPassword] = useState(credentials.password);
-  const [open, setOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [url, setUrl] = useState(credentials.portal);
 
-  const handleSaveCodeOrLink = async () => {
-    const value = codeOrLink.trim();
-    if (!value) return;
-    const { isLink } = setCodeOrLink(value);
-    if (isLink) await loadFromM3uUrls([value]);
-    setCodeOrLinkInput("");
-    setOpen(false);
-  };
-
-  const handleReloadChannels = async () => {
-    await reloadChannelsFromSavedLink();
-  };
-
-  const handleSaveAdvanced = () => {
-    setCredentials({ portal, username, password });
+  const handleSave = async () => {
+    const portal = url.trim() || IPTV_PORTAL_DEFAULT;
+    const user = username.trim() || IPTV_USERNAME_DEFAULT;
+    const pass = password.trim() || IPTV_PASSWORD_DEFAULT;
+    setCredentials({ portal, username: user, password: pass });
+    setPlaylistName(name.trim() || IPTV_PLAYLIST_NAME_DEFAULT);
+    const m3uUrl = buildXtreamM3uUrl(portal, user, pass);
+    setSavedPlaylistUrl(m3uUrl);
+    await loadFromM3uUrls([m3uUrl]);
     setOpen(false);
   };
 
   const handleClear = () => {
     clearCredentials();
-    setCodeOrLinkInput("");
-    setPortal(IPTV_PORTAL_DEFAULT);
+    setName(IPTV_PLAYLIST_NAME_DEFAULT);
     setUsername(IPTV_USERNAME_DEFAULT);
     setPassword(IPTV_PASSWORD_DEFAULT);
+    setUrl(IPTV_PORTAL_DEFAULT);
     setOpen(false);
   };
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
     if (next) {
-      setPortal(credentials.portal);
+      setName(playlistName);
       setUsername(credentials.username);
       setPassword(credentials.password);
+      setUrl(credentials.portal);
     }
   };
 
-  const codeOrLinkPlaceholder = "e.g. 555788406 or http://...playlist.m3u";
-  const isLink = isPlaylistUrl(codeOrLink);
+  const canSave = url.trim().length > 0;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-background to-transparent">
       <div className="max-w-screen-2xl mx-auto px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between">
-        {/* Logo - touch target on mobile */}
         <Link
           to="/"
           className="flex items-center gap-2 sm:gap-2.5 group min-h-[44px] items-center -my-1 touch-manipulation"
@@ -94,99 +87,78 @@ export function Navbar() {
         </Link>
 
         <div className="flex items-center gap-2">
-          {/* Code or link (like IPTV Smarters / XCIPTV) */}
           <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
                 className="min-h-[44px] min-w-[44px] touch-manipulation"
-                aria-label="Enter code or playlist link (like XCIPTV)"
+                aria-label="Enter playlist details"
               >
-                <KeyRound className={`h-5 w-5 ${hasCustomCode || savedPlaylistUrl ? "text-primary" : "text-muted-foreground"}`} />
+                <KeyRound className={`h-5 w-5 ${hasCustomCode ? "text-primary" : "text-muted-foreground"}`} />
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Code or playlist link</DialogTitle>
-                <DialogDescription>
-                  Enter the code or link from your provider (e.g. Loop Tunisien). Reload the app or use &quot;Reload channels&quot; to load channels from a link.
-                </DialogDescription>
+            <DialogContent className="sm:max-w-md bg-gradient-to-b from-[hsl(262,50%,12%)] to-[hsl(340,40%,18%)] border-[hsl(262,30%,22%)]">
+              <DialogHeader className="text-center">
+                <DialogTitle className="text-xl font-bold text-white">
+                  Enter Your Playlist Details
+                </DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="code-or-link">Code or playlist link</Label>
+                <Input
+                  type="text"
+                  placeholder="Playlist Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="rounded-xl bg-white/10 border-white/20 text-foreground placeholder:text-muted-foreground h-11"
+                />
+                <Input
+                  type="text"
+                  placeholder="Username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="rounded-xl bg-white/10 border-white/20 text-foreground placeholder:text-muted-foreground h-11"
+                />
+                <div className="relative">
                   <Input
-                    id="code-or-link"
-                    type="text"
-                    placeholder={codeOrLinkPlaceholder}
-                    value={codeOrLink}
-                    onChange={(e) => setCodeOrLinkInput(e.target.value)}
-                    className="font-mono text-sm"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="rounded-xl bg-white/10 border-white/20 text-foreground placeholder:text-muted-foreground h-11 pr-10"
                   />
-                </div>
-                {savedPlaylistUrl && (
-                  <Button
+                  <button
                     type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleReloadChannels}
-                    disabled={channelsLoading}
-                    className="w-full"
+                    onClick={() => setShowPassword((p) => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    <RotateCw className={`h-4 w-4 mr-2 ${channelsLoading ? "animate-spin" : ""}`} />
-                    Reload channels
-                  </Button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((a) => !a)}
-                  className="text-xs text-muted-foreground hover:text-foreground text-left"
-                >
-                  {showAdvanced ? "Hide" : "Show"} Xtream (Portal / Username / Password)
-                </button>
-                {showAdvanced && (
-                  <div className="grid gap-2 border-t pt-4 space-y-2">
-                    <Label>Portal URL</Label>
-                    <Input
-                      type="url"
-                      placeholder="http://server:port"
-                      value={portal}
-                      onChange={(e) => setPortal(e.target.value)}
-                      className="font-mono text-sm"
-                    />
-                    <Label>Username</Label>
-                    <Input
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="font-mono"
-                    />
-                    <Label>Password</Label>
-                    <Input
-                      type="text"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="font-mono"
-                    />
-                  </div>
-                )}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Input
+                  type="url"
+                  placeholder="http://url_here.com:port"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  className="rounded-xl bg-white/10 border-white/20 text-foreground placeholder:text-muted-foreground h-11 font-mono text-sm"
+                />
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={handleClear}>
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={handleSave}
+                  disabled={!canSave || channelsLoading}
+                  className="w-full h-12 rounded-xl bg-white text-black font-bold hover:bg-white/90"
+                >
+                  {channelsLoading ? "Searching channels…" : "Save & search channels"}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleClear} className="text-muted-foreground">
                   Clear (use default)
                 </Button>
-                {showAdvanced ? (
-                  <Button onClick={handleSaveAdvanced}>Save Xtream</Button>
-                ) : (
-                  <Button onClick={handleSaveCodeOrLink} disabled={!codeOrLink.trim() || channelsLoading}>
-                    {isLink ? "Save & load channels" : "Save"}
-                  </Button>
-                )}
-              </DialogFooter>
+              </div>
             </DialogContent>
           </Dialog>
 
-          {/* Live indicator - shorter on mobile */}
           <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
             <span className="w-2 h-2 rounded-full bg-primary animate-live-pulse inline-block shadow-live flex-shrink-0" />
             <span className="font-medium hidden sm:inline">Broadcasting Live</span>

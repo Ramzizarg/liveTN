@@ -10,7 +10,15 @@ interface VideoPlayerProps {
   onError?: () => void;
 }
 
+const LOADING_TIMEOUT_MS = 12_000;
+
 type PlayerState = "loading" | "playing" | "error";
+
+/** Xtream .ts URLs often have an HLS version at .m3u8 – use that for HLS.js */
+function toHlsUrlIfNeeded(url: string): string {
+  if (/\.ts$/i.test(url.trim())) return url.trim().replace(/\.ts$/i, ".m3u8");
+  return url;
+}
 
 export function VideoPlayer({ src, channelName, className, onError }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -23,6 +31,7 @@ export function VideoPlayer({ src, channelName, className, onError }: VideoPlaye
     if (!video) return;
 
     setState("loading");
+    const hlsSrc = toHlsUrlIfNeeded(src);
 
     // Cleanup previous instance
     if (hlsRef.current) {
@@ -38,7 +47,7 @@ export function VideoPlayer({ src, channelName, className, onError }: VideoPlaye
         maxMaxBufferLength: 60,
       });
 
-      hls.loadSource(src);
+      hls.loadSource(hlsSrc);
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -56,7 +65,7 @@ export function VideoPlayer({ src, channelName, className, onError }: VideoPlaye
       hlsRef.current = hls;
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       // Native HLS (Safari)
-      video.src = src;
+      video.src = hlsSrc;
       video.addEventListener("loadedmetadata", () => {
         video.play().catch(() => setState("error"));
         setState("playing");
@@ -69,6 +78,13 @@ export function VideoPlayer({ src, channelName, className, onError }: VideoPlaye
       setState("error");
     }
   };
+
+  // Loading timeout: if stream never starts, show error so user isn't stuck
+  useEffect(() => {
+    if (state !== "loading") return;
+    const t = setTimeout(() => setState("error"), LOADING_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [state, src]);
 
   useEffect(() => {
     initPlayer();

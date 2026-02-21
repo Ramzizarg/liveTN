@@ -67,6 +67,15 @@ export function ChannelsProvider({ children }: { children: ReactNode }) {
     credentials.password
   );
 
+  /** Show TN (Tunisia), AR (Arabic), and QA (Qatar) channels */
+  const byCountry = channelsWithCredentials.filter(
+    (c) => c.country === "TN" || c.country === "QA" || c.country === "AR"
+  );
+
+  /** Remove all channels after the first CNBC (keep only up to and including CNBC) */
+  const cnbcIndex = byCountry.findIndex((c) => /cnbc/i.test(c.name));
+  const channelsFiltered = cnbcIndex >= 0 ? byCountry.slice(0, cnbcIndex + 1) : byCountry;
+
   const loadFromM3uUrls = useCallback(async (urls: string[]) => {
     const list = urls.map((u) => u.trim()).filter(Boolean);
     if (list.length === 0) return;
@@ -118,7 +127,7 @@ export function ChannelsProvider({ children }: { children: ReactNode }) {
   return (
     <ChannelsContext.Provider
       value={{
-        channels: channelsWithCredentials,
+        channels: channelsFiltered,
         loading,
         error,
         loadWarning,

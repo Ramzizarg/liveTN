@@ -113,7 +113,7 @@ export function ChannelCard({ channel, focused, onFocus }: ChannelCardProps) {
 
 function getFlagEmoji(countryCode: string): string {
   const flags: Record<string, string> = {
-    QA: "🇶🇦", DE: "🇩🇪", US: "🇺🇸", FR: "🇫🇷", EU: "🇪🇺",
+    QA: "🇶🇦", AR: "🇦🇷", DE: "🇩🇪", US: "🇺🇸", FR: "🇫🇷", EU: "🇪🇺",
     GB: "🇬🇧", RU: "🇷🇺", TN: "🇹🇳", UN: "🌐",
   };
   return flags[countryCode] || "🌐";

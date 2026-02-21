@@ -11,10 +11,11 @@ export interface Channel {
 /** Arabic language channels - https://iptv-org.github.io/iptv/languages/ara.m3u */
 export const ARA_M3U_URL = "https://iptv-org.github.io/iptv/languages/ara.m3u";
 
-/** XCIPTV / Xtream Codes style defaults (same as entering in XCIPTV app) */
-export const IPTV_PORTAL_DEFAULT = "http://20012.xyz:2086";
-export const IPTV_USERNAME_DEFAULT = "07XJwOyG0Z";
-export const IPTV_PASSWORD_DEFAULT = "555788406";
+/** XCIPTV / Xtream Codes style defaults */
+export const IPTV_PLAYLIST_NAME_DEFAULT = "Aziza";
+export const IPTV_PORTAL_DEFAULT = "http://s4.360iptv.net:8000";
+export const IPTV_USERNAME_DEFAULT = "691667172364";
+export const IPTV_PASSWORD_DEFAULT = "691667172364";
 
 /** Build stream URL like XCIPTV: portal/live/username/password/stream_id.ts */
 export function buildXtreamStreamUrl(
@@ -25,6 +26,12 @@ export function buildXtreamStreamUrl(
 ): string {
   const base = portal.replace(/\/+$/, "");
   return `${base}/live/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${streamId}.ts`;
+}
+
+/** Build M3U playlist URL for Xtream Codes (get.php) – used to load/search channels */
+export function buildXtreamM3uUrl(portal: string, username: string, password: string): string {
+  const base = portal.replace(/\/+$/, "");
+  return `${base}/get.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&type=m3u_plus`;
 }
 
 const tn = (streamId: string) =>
@@ -317,7 +324,21 @@ export function parseM3U(content: string, baseUrl?: string): Channel[] {
         ? idMatch[1].toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '-')
         : name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '-');
 
-      currentChannel.country = 'UN';
+      const countryMatch = line.match(/tvg-country="([^"]+)"/);
+      if (countryMatch) {
+        currentChannel.country = countryMatch[1].toUpperCase().slice(0, 2);
+      } else {
+        const group = (groupMatch?.[1] ?? "").toLowerCase();
+        const nameLower = name.toLowerCase();
+        const combined = `${group} ${nameLower}`;
+        const qatarHint = /qatar|al\s*jazeera|الجزيرة|^qa\b/i;
+        const arabicHint = /arabic|arab|عربي|العربية|beoutq|bein\s*sports/i;
+        const tunisiaHint = /tunisia|tunisie|tunisian|^tn\b|الوطني|التونسية|تونس|nat\s*1|el\s*watania/i;
+        if (qatarHint.test(combined)) currentChannel.country = "QA";
+        else if (arabicHint.test(combined)) currentChannel.country = "AR";
+        else if (tunisiaHint.test(combined)) currentChannel.country = "TN";
+        else currentChannel.country = "UN";
+      }
       if (!currentChannel.logo) currentChannel.logo = '';
     } else if (line && !line.startsWith('#') && currentChannel) {
       let streamUrl = line;
@@ -357,23 +378,33 @@ function stripUrlCredentials(url: string): string {
 
 const M3U_FETCH_TIMEOUT_MS = 15_000;
 
+/** In dev, use same-origin proxy to avoid CORS when IPTV server doesn't send Access-Control-Allow-Origin. */
+function getM3UFetchUrl(url: string): string {
+  const trimmed = url.trim();
+  if (typeof window !== "undefined" && import.meta.env.DEV && (trimmed.startsWith("http://") || trimmed.startsWith("https://"))) {
+    return `${window.location.origin}/api/iptv-proxy?url=${encodeURIComponent(trimmed)}`;
+  }
+  return stripUrlCredentials(trimmed);
+}
+
 /** Fetch M3U content from URL and return parsed channels. Base URL is used to resolve relative stream URLs. */
 export async function fetchChannelsFromM3uUrl(url: string, timeoutMs = M3U_FETCH_TIMEOUT_MS): Promise<Channel[]> {
-  const fetchUrl = stripUrlCredentials(url);
+  const originalUrl = stripUrlCredentials(url.trim());
+  const fetchUrl = getM3UFetchUrl(url);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(fetchUrl, { mode: 'cors', signal: controller.signal });
+    const res = await fetch(fetchUrl, { signal: controller.signal });
     clearTimeout(timeoutId);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
-    const baseUrl = fetchUrl.replace(/\?.*$/, '').replace(/\/[^/]*$/, '/');
+    const baseUrl = originalUrl.replace(/\?.*$/, "").replace(/\/[^/]*$/, "/");
     const list = parseM3U(text, baseUrl);
     return list;
   } catch (e) {
     clearTimeout(timeoutId);
     if (e instanceof Error) {
-      if (e.name === 'AbortError') throw new Error('Connection timed out');
+      if (e.name === "AbortError") throw new Error("Connection timed out");
       throw e;
     }
     throw e;

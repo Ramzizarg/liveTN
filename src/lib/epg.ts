@@ -74,9 +74,18 @@ export function getNowAndNext(programmes: Programme[] | undefined, nowMs: number
   return result;
 }
 
-export async function fetchEpg(portal: string, username: string, password: string): Promise<EpgByChannel> {
+/** In dev, use same-origin proxy to avoid CORS when IPTV server doesn't send CORS headers. */
+function getEpgFetchUrl(portal: string, username: string, password: string): string {
   const base = portal.replace(/\/+$/, "");
   const url = `${base}/xmltv.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+  if (typeof window !== "undefined" && import.meta.env.DEV && (url.startsWith("http://") || url.startsWith("https://"))) {
+    return `${window.location.origin}/api/iptv-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
+export async function fetchEpg(portal: string, username: string, password: string): Promise<EpgByChannel> {
+  const url = getEpgFetchUrl(portal, username, password);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), EPG_FETCH_TIMEOUT_MS);
   try {
