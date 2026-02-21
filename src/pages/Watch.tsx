@@ -36,12 +36,10 @@ export default function Watch() {
     ? [channel, ...channels.filter((c) => c.id !== channel.id)]
     : channels;
 
-  /** Filter by search (name or category) */
+  /** Filter by search (name) */
   const filteredChannels = channelSearch.trim()
-    ? channelsWithCurrentFirst.filter(
-        (ch) =>
-          ch.name.toLowerCase().includes(channelSearch.toLowerCase()) ||
-          ch.category.toLowerCase().includes(channelSearch.toLowerCase())
+    ? channelsWithCurrentFirst.filter((ch) =>
+        ch.name.toLowerCase().includes(channelSearch.toLowerCase())
       )
     : channelsWithCurrentFirst;
 
@@ -129,7 +127,6 @@ export default function Watch() {
                 </span>
                 <LiveBadge size="sm" />
               </div>
-              <span className="text-xs text-muted-foreground truncate block">{channel.category}</span>
               {epgInfo && (epgInfo.now || epgInfo.next) && (
                 <div className="text-xs text-muted-foreground truncate mt-0.5 space-x-2">
                   {epgInfo.now && <span title={epgInfo.now.title}>Now: {epgInfo.now.title}</span>}
@@ -303,7 +300,6 @@ export default function Watch() {
                   >
                     {ch.name}
                   </p>
-                  <p className="text-xs text-muted-foreground/70 truncate">{ch.category}</p>
                 </div>
                 {/* Live dot */}
                 {ch.id === channel.id && (

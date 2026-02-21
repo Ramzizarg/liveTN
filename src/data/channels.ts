@@ -30,14 +30,6 @@ export function buildXtreamStreamUrl(
 const tn = (streamId: string) =>
   buildXtreamStreamUrl(IPTV_PORTAL_DEFAULT, IPTV_USERNAME_DEFAULT, IPTV_PASSWORD_DEFAULT, streamId);
 
-export const CATEGORIES = [
-  "All",
-  "Music",
-  "Sports",
-  "Culture",
-  "Tunisia",
-];
-
 export const channels: Channel[] = [
   // ── Tunisia (Xtream Codes – use Portal / Username / Password on site) ─
   {

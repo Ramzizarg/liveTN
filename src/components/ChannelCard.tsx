@@ -31,7 +31,7 @@ export function ChannelCard({ channel, focused, onFocus }: ChannelCardProps) {
     <div
       role="button"
       tabIndex={0}
-      aria-label={`Watch ${channel.name} - ${channel.category} - LIVE`}
+      aria-label={`Watch ${channel.name} - LIVE`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onFocus={onFocus}
@@ -94,12 +94,7 @@ export function ChannelCard({ channel, focused, onFocus }: ChannelCardProps) {
       </div>
 
       {/* Info - touch-friendly padding on mobile */}
-      <div className="p-3 sm:p-3 space-y-1">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-accent">
-            {channel.category}
-          </span>
-        </div>
+      <div className="p-3 sm:p-3">
         <h3 className="font-display font-semibold text-sm leading-tight text-foreground truncate group-hover:text-accent transition-colors duration-200">
           {channel.name}
         </h3>

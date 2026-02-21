@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Channel } from "@/data/channels";
 import { ChannelCard } from "@/components/ChannelCard";
 import { ChannelSkeleton } from "@/components/ChannelSkeleton";
-import { CategoryFilter } from "@/components/CategoryFilter";
 import { Navbar } from "@/components/Navbar";
 import { LiveBadge } from "@/components/LiveBadge";
 import { useChannels } from "@/contexts/ChannelsContext";
@@ -12,7 +11,6 @@ import { Search, X, ListPlus, RotateCcw, Loader2, Languages } from "lucide-react
 export default function Index() {
   const { channels, loading: channelsLoading, error: channelsError, loadWarning, loadFromM3uUrls, resetToDefault } = useChannels();
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [m3uUrls, setM3uUrls] = useState("");
@@ -20,23 +18,14 @@ export default function Index() {
   const gridRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const categories = ["All", ...Array.from(new Set(channels.map((c) => c.category).filter(Boolean)))].filter(
-    (c, i, a) => a.indexOf(c) === i
-  );
-
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 1200);
     return () => clearTimeout(t);
   }, []);
 
-  const filtered: Channel[] = channels.filter((ch) => {
-    const matchCat = activeCategory === "All" || ch.category === activeCategory;
-    const matchSearch =
-      !search ||
-      ch.name.toLowerCase().includes(search.toLowerCase()) ||
-      ch.category.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
-  });
+  const filtered: Channel[] = channels.filter((ch) =>
+    !search || ch.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
@@ -97,9 +86,8 @@ export default function Index() {
           </p>
         </div>
 
-        {/* Search + Filters */}
+        {/* Search */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-6 sm:mb-8">
-          {/* Search bar - touch friendly */}
           <div className="relative flex-shrink-0 w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
@@ -126,15 +114,6 @@ export default function Index() {
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
-          </div>
-
-          {/* Category pills */}
-          <div className="flex-1 overflow-hidden">
-            <CategoryFilter
-              active={activeCategory}
-              onChange={(cat) => { setActiveCategory(cat); setFocusedIndex(0); }}
-              categories={categories.length > 1 ? categories : undefined}
-            />
           </div>
         </div>
 
@@ -181,7 +160,7 @@ export default function Index() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setM3uUrls(""); resetToDefault(); setActiveCategory("All"); }}
+                  onClick={() => { setM3uUrls(""); resetToDefault(); }}
                   className="flex items-center gap-2 px-5 py-3 min-h-[44px] rounded-xl bg-surface-3 border border-border text-sm font-medium hover:border-focus active:scale-[0.98] touch-manipulation"
                 >
                   <RotateCcw className="w-4 h-4" />
@@ -202,7 +181,6 @@ export default function Index() {
         {!loading && (
           <p className="text-muted-foreground text-xs mb-3 sm:mb-4">
             Showing <span className="text-foreground font-semibold">{filtered.length}</span> channel{filtered.length !== 1 ? "s" : ""}
-            {activeCategory !== "All" ? ` in ${activeCategory}` : ""}
             {search ? ` matching "${search}"` : ""}
             <span className="hidden sm:inline">
               {" · "}
@@ -233,7 +211,7 @@ export default function Index() {
                 <Search className="w-7 h-7 text-muted-foreground" />
               </div>
               <h3 className="font-display font-semibold text-lg text-foreground mb-1">No channels found</h3>
-              <p className="text-muted-foreground text-sm">Try a different category or search term</p>
+              <p className="text-muted-foreground text-sm">Try a different search term</p>
             </div>
           )}
         </div>
