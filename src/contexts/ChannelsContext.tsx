@@ -91,6 +91,10 @@ export function ChannelsProvider({ children }: { children: ReactNode }) {
             `${failedCount} URL${failedCount === 1 ? "" : "s"} failed (timeout or server unreachable).`
           );
         }
+      } else if (failedCount > 0) {
+        // M3U failed - use default channels with current credentials
+        setChannels(applyIptvCredentialsToChannels(defaultChannels, credentials.portal, credentials.username, credentials.password));
+        setLoadWarning("Playlist API blocked by provider. Using default channels with your credentials.");
       } else {
         setError(
           list.length === 1
@@ -99,12 +103,13 @@ export function ChannelsProvider({ children }: { children: ReactNode }) {
         );
       }
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Failed to load playlist";
-      setError(message + ". Some servers block browser requests (CORS) or may be unreachable.");
+      // M3U failed - use default channels with current credentials
+      setChannels(applyIptvCredentialsToChannels(defaultChannels, credentials.portal, credentials.username, credentials.password));
+      setLoadWarning("Playlist API blocked. Using default channels with your credentials.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [credentials]);
 
   const reloadChannelsFromSavedLink = useCallback(async () => {
     if (savedPlaylistUrl?.trim()) await loadFromM3uUrls([savedPlaylistUrl.trim()]);
