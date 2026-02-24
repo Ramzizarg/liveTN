@@ -20,6 +20,17 @@ function toHlsUrlIfNeeded(url: string): string {
   return url;
 }
 
+/** Route Xtream streams through Vercel proxy to avoid CORS in browser */
+function getProxiedStreamUrl(url: string): string {
+  const trimmed = url.trim();
+  // Detect Xtream URLs by credentials pattern
+  const hasXtreamCreds = trimmed.includes("691667172364/691667172364");
+  if (hasXtreamCreds && typeof window !== "undefined") {
+    return `/api/stream-proxy?url=${encodeURIComponent(trimmed)}`;
+  }
+  return trimmed;
+}
+
 export function VideoPlayer({ src, channelName, className, onError }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -31,7 +42,7 @@ export function VideoPlayer({ src, channelName, className, onError }: VideoPlaye
     if (!video) return;
 
     setState("loading");
-    const hlsSrc = toHlsUrlIfNeeded(src);
+    const hlsSrc = toHlsUrlIfNeeded(getProxiedStreamUrl(src));
 
     // Cleanup previous instance
     if (hlsRef.current) {
@@ -68,7 +79,6 @@ export function VideoPlayer({ src, channelName, className, onError }: VideoPlaye
       video.src = hlsSrc;
       video.addEventListener("loadedmetadata", () => {
         video.play().catch(() => setState("error"));
-        setState("playing");
       });
       video.addEventListener("error", () => {
         setState("error");

@@ -28,10 +28,12 @@ export function buildXtreamStreamUrl(
   return `${base}/live/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${streamId}.ts`;
 }
 
-/** Build M3U playlist URL for Xtream Codes (get.php) – used to load/search channels */
+/** Build M3U playlist URL for Xtream Codes (get.php) –/** Builds the M3U playlist URL for Xtream Codes. */
 export function buildXtreamM3uUrl(portal: string, username: string, password: string): string {
-  const base = portal.replace(/\/+$/, "");
-  return `${base}/get.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&type=m3u_plus`;
+  const base = portal.trim().replace(/\/$/, "");
+  // Use port 8080 which works for streams
+  const baseWithPort = base.replace(":8000", ":8080");
+  return `${baseWithPort}/get.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&type=m3u_plus`;
 }
 
 const tn = (streamId: string) =>
@@ -381,7 +383,8 @@ const M3U_FETCH_TIMEOUT_MS = 15_000;
 /** In dev, use same-origin proxy to avoid CORS when IPTV server doesn't send Access-Control-Allow-Origin. */
 function getM3UFetchUrl(url: string): string {
   const trimmed = url.trim();
-  if (typeof window !== "undefined" && import.meta.env.DEV && (trimmed.startsWith("http://") || trimmed.startsWith("https://"))) {
+  if (typeof window !== "undefined" && (trimmed.startsWith("http://") || trimmed.startsWith("https://"))) {
+    // Use Vercel serverless function proxy (works in both dev and production)
     return `${window.location.origin}/api/iptv-proxy?url=${encodeURIComponent(trimmed)}`;
   }
   return stripUrlCredentials(trimmed);
