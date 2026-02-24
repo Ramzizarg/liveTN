@@ -74,11 +74,12 @@ export function getNowAndNext(programmes: Programme[] | undefined, nowMs: number
   return result;
 }
 
-/** In dev, use same-origin proxy to avoid CORS when IPTV server doesn't send CORS headers. */
+/** Route EPG through proxy to avoid CORS and Mixed Content issues. */
 function getEpgFetchUrl(portal: string, username: string, password: string): string {
   const base = portal.replace(/\/+$/, "");
   const url = `${base}/xmltv.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-  if (typeof window !== "undefined" && import.meta.env.DEV && (url.startsWith("http://") || url.startsWith("https://"))) {
+  if (typeof window !== "undefined" && (url.startsWith("http://") || url.startsWith("https://"))) {
+    // Use Vercel serverless function proxy (works in both dev and production)
     return `${window.location.origin}/api/iptv-proxy?url=${encodeURIComponent(url)}`;
   }
   return url;
